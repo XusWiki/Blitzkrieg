@@ -20,7 +20,7 @@ fund = 100000
 profit = []
 
 
-# 生成类，测试股票于期间的价格变化
+# 生成类
 class Backtrack(multiprocessing.Process):
     def __init__(self, code):
         multiprocessing.Process.__init__(self)
@@ -43,24 +43,15 @@ class Backtrack(multiprocessing.Process):
         self.log = {str(self.time_series[0])[0:10]: '''{} RUNNING STRATEGY'''.format(self.code)}
 
     def trade_long(self, price, date_str):
-        # try:
-        #     self.trade_long(self.data['open'].iloc[each + 1], str(self.time_series[each])[0:10])
-        # except:
-        #     pass
         volume = int(self.real_time_fund // price)
         if volume > 0:
             self.real_time_fund -= (price * volume)
             self.real_time_stock += volume
-            self.log[date_str] = '[Long] ${} [Fund] ${} [Volume] {}'.format('%.2f' % price,
-                                                                            '%.2f' % self.real_time_fund, int(volume))
+            self.log[date_str] = '[Long] ${} [Fund] ${} [Volume] {}'.format('%.2f' % price, '%.2f' % self.real_time_fund, int(volume))
         elif volume == 0:
             pass
 
     def trade_short(self, price, date_str):
-        # try:
-        #     self.trade_short(self.data['open'].iloc[each + 1], str(self.time_series[each])[0:10])
-        # except:
-        #     pass
         if self.real_time_stock == 0:
             pass
         elif self.real_time_stock > 0:
@@ -74,69 +65,23 @@ class Backtrack(multiprocessing.Process):
         print(print_log)
 
     def do_calculate(self):
-        self.strategy = pd.DataFrame(columns=['long', 'short'], index=self.data.index)
-        self.strategy['long'] = 0
-        self.strategy['short'] = 0
-        # 为方便随时增加或删除指标，此处将计算方法分开为多个循环。在使用大量数据时应注意运行效率问题。
-
-        '''计算每日价格变动'''
-
-        # try:
-        #     self.data['price_change'].iloc[0]
-        # except:
-        #     self.data['price_change'] = 0
-        #     for each in range(1, self.trading_days):
-        #         self.data['price_change'].iloc[each] = self.data['close'].iloc[each] - self.data['close'].iloc[each - 1]
-
-        '''计算每日价格变动的均值'''
-
-        # self.data['index_1'] = 0
-        # for each in range(self.trading_days):
-        #     self.data['index_1'].iloc[each] = self.data['close'].iloc[0:each].mean()
-        #
-        # '''计算每日价格变动的均值'''
-        #
-        # self.data['index_2'] = 0
-        # for each in range(self.trading_days):
-        #     self.data['index_2'].iloc[each] = self.data['close'].iloc[0:each].median()
-
-        '''Temp Code'''
-
-        self.data['price_change'] = 0
-        self.data['ma'] = 0
-        self.data['median'] = 0
-        self.data['index_1'] = 0
-        self.data['index_2'] = 0
-        for each in range(len(self.data['open'])):
-            self.data['price_change'].iloc[each] = self.data['close'].iloc[each] - self.data['close'].iloc[each - 1]
-            try:
-                self.data['ma'].iloc[each] = (self.data['price_change'].iloc[each] * 5 + self.data['price_change'].iloc[
-                    each - 1] * 4 +
-                                              self.data['price_change'].iloc[each - 2] * 3 +
-                                              self.data['price_change'].iloc[
-                                                  each - 3] * 2 + self.data['price_change'].iloc[each - 4]) / 15
-            except:
-                pass
-            self.data['median'].iloc[each] = self.data['price_change'].iloc[0:each].median()
-            self.data['index_1'].iloc[each] = self.data['close'].iloc[each - 1] + self.data['ma'].iloc[each]
-            self.data['index_2'].iloc[each] = self.data['close'].iloc[each - 1] + self.data['median'].iloc[each]
-
+        self.data['long_order']] = 0
+        self.data['short_order'] = 0
+        
     # 执行交易
     def do_strategy(self):
         self.do_calculate()
         for each in range(0, self.trading_days - 1):
             if each < date_start_trading_day:
                 continue
-            elif self.strategy['long'].iloc[each] == 1:
+            elif self.data['long_order'].iloc[each] == 1:
                 try:
-                    self.trade_long(self.data['open'].iloc[each + date_trading_lag],
-                                    str(self.time_series[each + date_trading_lag])[0:10])
+                    self.trade_long(self.data['open'].iloc[each + date_trading_lag], str(self.time_series[each + date_trading_lag])[0:10])
                 except:
                     pass
-            elif self.strategy['short'].iloc[each] == 1:
+            elif self.data['short_order'].iloc[each] == 1:
                 try:
-                    self.trade_short(self.data['open'].iloc[each + date_trading_lag],
-                                     str(self.time_series[each + date_trading_lag])[0:10])
+                    self.trade_short(self.data['open'].iloc[each + date_trading_lag], str(self.time_series[each + date_trading_lag])[0:10])
                 except:
                     pass
             else:
