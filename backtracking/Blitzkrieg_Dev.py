@@ -8,10 +8,11 @@ import pandas as pd
 import tushare as ts
 
 # 设定期初与期间
-date_config = [0, 365, 15]
+date_config = [0, 365, 14, 1]  # 期末日期距离今天的日期差；计算的期间；期初开始不进行交易的时间；计算出交易信号后多少天进行交易
 date_today = datetime.date.today() - datetime.timedelta(days=date_config[0])
 date_yesterday = date_today - datetime.timedelta(days=date_config[1])
 date_start_trading_day = date_config[2]
+date_trading_lag = date_config[3]
 
 # 设定股票仓
 portfolio = sys.argv[1:]
@@ -36,7 +37,6 @@ class Backtrack(multiprocessing.Process):
         self.initial_fund = (fund / len(portfolio))
         self.real_time_fund = (fund / len(portfolio))
         self.real_time_stock = 0
-        self.real_time_stock_cost = 0
         self.real_time_profit = 0
         self.strategy_long_point = 0
         self.strategy_short_point = 0
@@ -47,13 +47,14 @@ class Backtrack(multiprocessing.Process):
         #     self.trade_long(self.data['open'].iloc[each + 1], str(self.time_series[each])[0:10])
         # except:
         #     pass
-        volume = self.real_time_fund // price
+        volume = int(self.real_time_fund // price)
         if volume > 0:
             self.real_time_fund -= (price * volume)
             self.real_time_stock += volume
-            self.real_time_stock_cost = price
-            self.log[date_str] = '[Long] ${} [Fund] ${} [Volume] {}'.format('%.2f' % price, '%.2f' % self.real_time_fund, int(volume))
-
+            self.log[date_str] = '[Long] ${} [Fund] ${} [Volume] {}'.format('%.2f' % price,
+                                                                            '%.2f' % self.real_time_fund, int(volume))
+        elif volume == 0:
+            pass
 
     def trade_short(self, price, date_str):
         # try:
@@ -72,59 +73,85 @@ class Backtrack(multiprocessing.Process):
         print_log = pd.Series(self.log)
         print(print_log)
 
-    # ================================你的游乐场================================
-
     def do_calculate(self):
-        # self.data['price_change'] = 0
-        # self.data['price_change_in_day'] = 0
-        self.data['ma5'] = 0
-        self.data['ma10'] = 0
-        for each in range(len(self.data['open'])):
-            if each > 3 and each <= 8:
-                self.data['ma5'].iloc[each] = (self.data['close'].iloc[each] * 5 + self.data['close'].iloc[
-                    each - 1] * 4 + self.data['close'].iloc[each - 2] * 3 + self.data['close'].iloc[each - 3] * 2 +
-                                               self.data['close'].iloc[each - 4]) / 15
-            elif each > 8:
-                self.data['ma5'].iloc[each] = (self.data['close'].iloc[each] * 5 + self.data['close'].iloc[
-                    each - 1] * 4 + self.data['close'].iloc[each - 2] * 3 + self.data['close'].iloc[each - 3] * 2 +
-                                               self.data['close'].iloc[each - 4]) / 15
-                self.data['ma10'].iloc[each] = (self.data['close'].iloc[each] * 9 + self.data['close'].iloc[
-                    each - 1] * 8 + self.data['close'].iloc[each - 2] * 7 + self.data['close'].iloc[each - 3] * 6 +
-                                                self.data['close'].iloc[each - 4] * 5 + self.data['close'].iloc[
-                                                    each - 5] * 4 + self.data['close'].iloc[each - 6] * 3 +
-                                                self.data['close'].iloc[each - 7] * 2 + self.data['close'].iloc[
-                                                    each - 8]) / 45
-            else:
-                self.data['ma5'].iloc[each] = 0
-                self.data['ma10'].iloc[each] = 0
+        self.strategy = pd.DataFrame(columns=['long', 'short'], index=self.data.index)
+        self.strategy['long'] = 0
+        self.strategy['short'] = 0
+        # 为方便随时增加或删除指标，此处将计算方法分开为多个循环。在使用大量数据时应注意运行效率问题。
 
+        '''计算每日价格变动'''
+
+        # try:
+        #     self.data['price_change'].iloc[0]
+        # except:
+        #     self.data['price_change'] = 0
+        #     for each in range(1, self.trading_days):
+        #         self.data['price_change'].iloc[each] = self.data['close'].iloc[each] - self.data['close'].iloc[each - 1]
+
+        '''计算每日价格变动的均值'''
+
+        # self.data['index_1'] = 0
+        # for each in range(self.trading_days):
+        #     self.data['index_1'].iloc[each] = self.data['close'].iloc[0:each].mean()
+        #
+        # '''计算每日价格变动的均值'''
+        #
+        # self.data['index_2'] = 0
+        # for each in range(self.trading_days):
+        #     self.data['index_2'].iloc[each] = self.data['close'].iloc[0:each].median()
+
+        '''Temp Code'''
+
+        self.data['price_change'] = 0
+        self.data['ma'] = 0
+        self.data['median'] = 0
+        self.data['index_1'] = 0
+        self.data['index_2'] = 0
+        for each in range(len(self.data['open'])):
+            self.data['price_change'].iloc[each] = self.data['close'].iloc[each] - self.data['close'].iloc[each - 1]
+            try:
+                self.data['ma'].iloc[each] = (self.data['price_change'].iloc[each] * 5 + self.data['price_change'].iloc[
+                    each - 1] * 4 +
+                                              self.data['price_change'].iloc[each - 2] * 3 +
+                                              self.data['price_change'].iloc[
+                                                  each - 3] * 2 + self.data['price_change'].iloc[each - 4]) / 15
+            except:
+                pass
+            self.data['median'].iloc[each] = self.data['price_change'].iloc[0:each].median()
+            self.data['index_1'].iloc[each] = self.data['close'].iloc[each - 1] + self.data['ma'].iloc[each]
+            self.data['index_2'].iloc[each] = self.data['close'].iloc[each - 1] + self.data['median'].iloc[each]
+
+    # 执行交易
     def do_strategy(self):
-        for each in range(self.trading_days):
-            if each >= date_start_trading_day:
-                if self.data['ma5'].iloc[each] > self.data['ma10'].iloc[each] and self.data['ma5'].iloc[each - 1] < self.data['ma10'].iloc[each - 1]:
-                    try:
-                        self.trade_long(self.data['open'].iloc[each + 1], str(self.time_series[each])[0:10])
-                    except:
-                        pass
-                elif self.data['ma5'].iloc[each] < self.data['ma10'].iloc[each] and self.data['ma5'].iloc[each - 1] > self.data['ma10'].iloc[each - 1]:
-                    try:
-                        self.trade_short(self.data['open'].iloc[each + 1], str(self.time_series[each])[0:10])
-                    except:
-                        pass
+        self.do_calculate()
+        for each in range(0, self.trading_days - 1):
+            if each < date_start_trading_day:
+                continue
+            elif self.strategy['long'].iloc[each] == 1:
+                try:
+                    self.trade_long(self.data['open'].iloc[each + date_trading_lag],
+                                    str(self.time_series[each + date_trading_lag])[0:10])
+                except:
+                    pass
+            elif self.strategy['short'].iloc[each] == 1:
+                try:
+                    self.trade_short(self.data['open'].iloc[each + date_trading_lag],
+                                     str(self.time_series[each + date_trading_lag])[0:10])
+                except:
+                    pass
             else:
                 pass
 
 
-# '''用投资组合执行策略并返回计算结果'''
+# 用投资组合执行策略并返回计算结果
 def do_backtrack():
     for each in portfolio:
         temp_name = 'S_{}'.format(each)
         exec("{} = Backtrack('{}')".format(temp_name, each))
-        exec('S_{}.do_calculate()'.format(each))
         exec('S_{}.do_strategy()'.format(each))
         exec('S_{}.do_log()'.format(each))
         exec('profit.append(S_{}.real_time_profit)'.format(each))
-        time.sleep(1)
+        time.sleep(0.1)
 
 
 if __name__ == "__main__":
@@ -136,4 +163,4 @@ if __name__ == "__main__":
     return_rate = (total_profit / fund) * 100
     end_time = time.clock()
     print('[Initial Fund] {} [Profit] {} [Return Rate] {}%'.format(fund, "%.2f" % total_profit, "%.3f" % return_rate))
-    print("RUNNING TIME: %f s" % (end_time - start_time))
+    print("[PROGRAM RUNNING TIME] %f s" % (end_time - start_time))
