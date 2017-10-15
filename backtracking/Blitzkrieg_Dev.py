@@ -1,3 +1,8 @@
+#! Python 3
+# [开发注释] 需要由外部文件 *.py 导入 strategy_long() 函数和 strategy_short() 函数。
+# [开发注释] 函数 strategy_long() 函数和 strategy_short() 函数，应该有两个布尔型返回值，分别为 0 和 1。
+# [开发注释] 返回值为 1 表示执行交易；返回值为 0 表示不执行交易。
+  
 import sys
 import time
 import datetime
@@ -6,6 +11,7 @@ import numpy as np
 import pandas as pd
 # import matplotlib.pyplot as plt
 import tushare as ts
+from sys.argv[1] import all
 
 # 设定期初与期间
 date_config = [0, 365, 14, 1]  # 期末日期距离今天的日期差；计算的期间；期初开始不进行交易的时间；计算出交易信号后多少天进行交易
@@ -15,13 +21,12 @@ date_start_trading_day = date_config[2]
 date_trading_lag = date_config[3]
 
 # 设定股票仓
-portfolio = sys.argv[1:]
+portfolio = sys.argv[2:]
 fund = 100000
 profit = []
 
-
-# 生成类
 class Backtrack(multiprocessing.Process):
+
     def __init__(self, code):
         multiprocessing.Process.__init__(self)
         self.code = str(code)
@@ -64,10 +69,13 @@ class Backtrack(multiprocessing.Process):
         print_log = pd.Series(self.log)
         print(print_log)
 
+    # 进行计算并声称
     def do_calculate(self):
         self.data['long_order']] = 0
         self.data['short_order'] = 0
-        
+        for each in range():
+            self.data['long_order'].iloc[each] = strategy_long(index_1, index_2, index_3)
+            self.data['short_order'].iloc[each] = strategy_short(index_4, index_5, index_6)
     # 执行交易
     def do_strategy(self):
         self.do_calculate()
